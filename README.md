@@ -1,5 +1,3 @@
-# Combined and relative contributions
-
 # This is paper is not yet published. Read the preregistration [here](https://doi.org/10.17605/OSF.IO/8N54H) #
 
 This paper is not yet submitted for review (June 11, 2020).
