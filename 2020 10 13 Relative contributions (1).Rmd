@@ -1,0 +1,785 @@
+---
+title             : "Mental health in context: the combined and relative effects of sleep quality, social company, negative events, coping ability, and physical activity on mental health in daily life"
+shorttitle        : "Mental health in context"
+author: 
+    
+  - name          : "Vera E. Heininga"
+    affiliation   : "1"
+    corresponding : yes
+    address       : "Grote Kruisstraat 2/1, 9712 TS  Groningen, The Netherlands"
+    email         : "v.e.heininga@rug.nl."
+  - name          : "Nienke Jonker"
+    affiliation   : "2"
+    corresponding : no
+    address       : "Tiensestraat 102 - bus 3713, 3000 Leuven"
+    email         : "n.jonker@rug.nl"
+  - name          : "Bertus Jeronimus"
+    affiliation   : "1"
+    corresponding : no
+    address       : "Tiensestraat 102 - bus 3713, 3000 Leuven"
+    email         : "b.f.jeronimus@rug.nl"
+  - name          : "Peter de Jonge"
+    affiliation   : "1"  
+    corresponding : no  
+    address       : "Tiensestraat 102 - bus 3713, 3000 Leuven"
+    email         : "peter.d.jonge@rug.nl"
+affiliation:
+    
+  - id            : "1"
+    institution   : "University of Groningen, Department of Developmental Psychology, The Netherlands"
+  - id            : "2"
+    institution   : "Department of Clinical Psychology and Experimental Psychopathology, University of Groningen, The Netherlands"
+abstract: |
+  
+  
+  
+  **Background**: Daily life risk and protective factors for mood and mood disorders have been almost exclusively investigated in isolation, leaving their combined and relative impact largely unknown.  Using an Experience Sample Method and a large sample (N=1396) we examine the combined and relative contributions of 1) sleep quality, 2) physical activity, 3) social interaction, 4) negative events, and 5) the ability to cope with such events to Positive Affect (PA) and Negative Affett (NA) in daily life. Collectively, the five risk/protective explained approximately 23-78% of the variations in NA, and 18-70% of the variations in PA. Changes in NA, as well as changes in PA, were relatively most strongly associated with coping and sleep quality.
+keywords          : "Depression; Anhedonia; Positive Affect; individual differences; Ecological Momentary Assessment (EMA)"
+wordcount         : 
+bibliography      : ["Zreferences.bib"]
+figurelist        : no
+tablelist         : yes
+footnotelist      : no
+lineno            : no
+figsintext        : no
+documentclass     : "apa6"
+mask              : no
+class             : "man"
+output            : papaja::apa6_word
+editor_options: 
+  chunk_output_type: inline\
+---
+
+```{r ReadMe, include=FALSE}
+
+# Preregistration doi: https://osf.io/8n54h
+# Preprint doi:
+
+# Below you will find the programming work with regard to:
+
+# Preperations:
+    # Preparing and merging relevant data
+
+# Variable computations for hypotheses testing:
+    # Variables belonging to H1:  a positive association between stressful events experienced in the past six hours and subsequent changes in NA, 
+    #   and a negative association between coping ability in the past six hours and subsequent changes in NA. [directional]
+    # Variables belonging to H2: a positive association between appraisal of social company in the past six hours and subsequent changes in PA, 
+    #    and a positive association between physical activity in the past six hours and subsequent changes in PA. [directional] 
+
+# Please, download Data and Materials from OSF: https://osf.io/drczs/
+# If you cannot reproduce our variables and/or findings in R, or if you have questions, 
+# critics, or compliments, you could try v.e.heininga@rug.nl, or v.e.heininga@gmail.com!
+
+```
+
+```{r load_packages, eval=FALSE}
+
+if (!require("pacman")) install.packages("pacman", repos ="http://cran.us.r-project.org")
+pacman::p_load(Rtools, foreign, summarytools, dplyr, expss, remotes, apaTables, MuMIn, effects, apaTables, sjPlot)
+
+# Install papaja 
+if(!"devtools" %in% rownames(installed.packages())) install.packages("devtools")
+devtools::install_github("crsh/papaja")
+
+# disable scientific notation in the output to make it easy to read
+options(scipen=999)
+
+```
+
+```{r data, message=FALSE}
+library(foreign)
+Data <- read.spss('x:\\2019-2020\\Papers\\Relative_contributions\\3_Data\\200604_HGIN097_Heininga_Diary181219.sav', to.data.frame=TRUE, use.value.labels=FALSE)
+
+library(dplyr)
+MyData <- Data %>% select(patient_id, sex, age_diary, QIDSsum_prediary,
+                          # Diary items for descriptive statistics and analyses:
+                          Real_period, meting, Observations_valid90, time, morning, afternoon, evening, time_completed, mad_diary_33,
+                          # NA items:
+                          mad_diary_6, mad_diary_8, mad_diary_10, mad_diary_12, mad_diary_14, mad_diary_16,
+                          # PA items:
+                          mad_diary_5, mad_diary_7, mad_diary_9, mad_diary_11, mad_diary_13, mad_diary_15,
+                          # Risk/protective factors:
+                          mad_diary_3, mad_diary_25, mad_diary_32, mad_diary_37, mad_diary_41
+                          )
+
+# labeling in accordance with Table2 from Krieken et al (2016):
+
+library(expss)
+MyData = apply_labels(MyData,
+                      patient_id = "participant identifier for the diary study", 
+                      sex = "binary version of gender variable from the cross-sectional part of HoeGekIsNL", 
+                      age_diary = "age in years, based on birth year from the cross-sectional part of HoeGekIsNL. Time-varying variable.", 
+                      QIDSsum_prediary = "sum scores from the pre-diary measurement on the QIDS",
+                      Real_period = "the period with most valid observations for each meting", 
+                      Real_period = c("assessment belongs to period with most valid observations" = 1,
+                                      "assessment belongs to not a period with most valid observations" = NA), 
+                      meting = "Number of 30 day diary study the particpant participated in. That is, if participants received feedback after the 30 days of diary study, they could start a new 30 day diary study.", 
+                      Observations_valid90 = "total number of valid observations (within 1 hour) (max 90)",
+                      time = "time point, or assessment number 1-89", 
+                      morning = c("No" = 0,
+                                  "Yes"=1), 
+                      afternoon = c("No" = 0,
+                                  "Yes"=1), 
+                      evening = c("No" = 0,
+                                  "Yes"=1), 
+                      time_completed = "completion time in minutes", 
+                      mad_diary_33 = "Context of special event. This was related to:",
+                      mad_diary_33 = c("Myself" = 1,
+                                      "Home situation/ close family/ significant others" = 2,
+                                      "Friends/ other family/acquaintances" = 3,
+                                      "Work/ school" = 4,
+                                      "Society/ news" = 5,
+                                      "Public space/ strangers" = 6,
+                                      "Other" = 7),
+                      mad_diary_6 = "I feel gloomy", 
+                      mad_diary_8 = "I feel anxious", 
+                      mad_diary_10 = "I feel nervous", 
+                      mad_diary_12 = "I feel irritable", 
+                      mad_diary_14 = "I feel dull", 
+                      mad_diary_16 = "I feel tired",
+                      mad_diary_5 = "I feel relaxed", 
+                      mad_diary_7 = "I feel energetic", 
+                      mad_diary_9 = "I feel enthusiastic", 
+                      mad_diary_11 = "I feel content", 
+                      mad_diary_13 = "I feel calm", 
+                      mad_diary_15 = "I feel cheerful",
+                      mad_diary_3 = "Did you sleep well? “Not at all” to “Very well” (0-100)", 
+                      mad_diary_25 = "I am unbalanced, “Not at all” to “Very much” (0–100)", 
+                      mad_diary_32 = "Did something special happen since the last measurement?", 
+                      mad_diary_32 = c("No, nothing" = 1,
+                                      "Yes, something positive" = 2,
+                                      "Yes, something neutral" = 3,
+                                      "Yes, something negative" = 4),
+                      mad_diary_37 = "Appraisal of social context, “Very unpleasant”, via “Neutral”, to “Very pleasant” (0-50-100)", 
+                      mad_diary_41 = "Physical activity, “Not at all” to “Very much” (0–100)"
+)
+
+
+# The ReadMe file of the HGNL study instructs data analysts to "Be sure to select Real_period= 1 for your analyses!" and to "Filter meting=1 & Real_period=1 & time<=90 should be sufficient when you do analyses on the diary items for the first official diary study (meting=1)."
+
+MyData_filter <- MyData %>% filter(meting == 1 & Real_period == 1 & time < 90 )
+
+## Data preparations
+
+### OUTCOME MEASURES PA & NA
+
+
+# Calculate variable reflecting mean PA and NA for each time point per person
+MyData_filter <- MyData_filter %>% mutate(
+                                        PosAffect = (mad_diary_5 + mad_diary_7 + mad_diary_9 + mad_diary_11 + mad_diary_13 + mad_diary_15) / 6,
+                                        NegAffect = (mad_diary_6 + mad_diary_8 + mad_diary_10 + mad_diary_12 + mad_diary_14 + mad_diary_16) / 6
+                                        )
+# Add variable labels
+var_lab(MyData_filter$PosAffect) = "mean of feelingrelaxed/ energetic/ enthusiastic/ content/ calm/ cheerful per assessment"
+var_lab(MyData_filter$NegAffect) = "mean of feeling gloomy/ anxious/ nevrous/ irritable/ dull/ tired per assessment"
+
+
+remotes::install_github("wviechtb/esmpack")
+library(esmpack)
+
+# Create within subject mean PA (descriptive)
+MyData_filter$PosAffect_m <- calc.mean(PosAffect, patient_id, data=MyData_filter, expand=TRUE)
+MyData_filter$PosAffect_m <- drop_var_labs(MyData_filter$PosAffect_m)
+
+# Create within subject mean NA  (descriptive)
+MyData_filter$NegAffect_m <- calc.mean(NegAffect, patient_id, data=MyData_filter, expand=TRUE)
+MyData_filter$NegAffect_m <- drop_var_labs(MyData_filter$NegAffect_m)
+
+# within-person change score of affect (i.e., the level of affect on time point t minus the level of affect on t-1) (for main analyses)
+
+# Create day number variable
+# Checked: first measurement is always in the morning
+# Could not figure out how to make the code underlying the get.day.number() function from the esmpack to work. Had to do it the ugly/long way. Please don't judge me!
+MyData_filter$day[MyData_filter$time <= 3] <- 1
+MyData_filter$day[MyData_filter$time > 3 & MyData_filter$time <= 6] <- 2
+MyData_filter$day[MyData_filter$time > 6 & MyData_filter$time <= 9] <- 3
+MyData_filter$day[MyData_filter$time > 9 & MyData_filter$time <= 12] <- 4
+MyData_filter$day[MyData_filter$time > 12 & MyData_filter$time <= 15] <- 5
+MyData_filter$day[MyData_filter$time > 15 & MyData_filter$time <= 18] <- 6
+MyData_filter$day[MyData_filter$time > 18 & MyData_filter$time <= 21] <- 7
+MyData_filter$day[MyData_filter$time > 21 & MyData_filter$time <= 24] <- 8
+MyData_filter$day[MyData_filter$time > 24 & MyData_filter$time <= 27] <- 9
+MyData_filter$day[MyData_filter$time > 27 & MyData_filter$time <= 30] <- 10
+MyData_filter$day[MyData_filter$time > 30 & MyData_filter$time <= 33] <- 11
+MyData_filter$day[MyData_filter$time > 33 & MyData_filter$time <= 36] <- 12
+MyData_filter$day[MyData_filter$time > 36 & MyData_filter$time <= 39] <- 13
+MyData_filter$day[MyData_filter$time > 39 & MyData_filter$time <= 42] <- 14
+MyData_filter$day[MyData_filter$time > 42 & MyData_filter$time <= 45] <- 15
+MyData_filter$day[MyData_filter$time > 45 & MyData_filter$time <= 48] <- 16
+MyData_filter$day[MyData_filter$time > 48 & MyData_filter$time <= 51] <- 17
+MyData_filter$day[MyData_filter$time > 51 & MyData_filter$time <= 54] <- 18
+MyData_filter$day[MyData_filter$time > 54 & MyData_filter$time <= 57] <- 19
+MyData_filter$day[MyData_filter$time > 57 & MyData_filter$time <= 60] <- 20
+MyData_filter$day[MyData_filter$time > 60 & MyData_filter$time <= 63] <- 21
+MyData_filter$day[MyData_filter$time > 63 & MyData_filter$time <= 66] <- 22
+MyData_filter$day[MyData_filter$time > 66 & MyData_filter$time <= 69] <- 23
+MyData_filter$day[MyData_filter$time > 69 & MyData_filter$time <= 72] <- 24
+MyData_filter$day[MyData_filter$time > 72 & MyData_filter$time <= 75] <- 25
+MyData_filter$day[MyData_filter$time > 75 & MyData_filter$time <= 78] <- 26
+MyData_filter$day[MyData_filter$time > 78 & MyData_filter$time <= 81] <- 27
+MyData_filter$day[MyData_filter$time > 81 & MyData_filter$time <= 83] <- 28
+MyData_filter$day[MyData_filter$time > 83 & MyData_filter$time <= 86] <- 29
+MyData_filter$day[MyData_filter$time > 86 & MyData_filter$time <= 89] <- 30
+
+# Create lagged dependent variables PA and NA
+MyData_filter$PosAffect_1 <- lagvar(PosAffect, patient_id, obs=time, day=day,  data=MyData_filter, lag=1)
+MyData_filter$NegAffect_1 <- lagvar(NegAffect, patient_id, obs=time, day=day, data=MyData_filter, lag=1)
+
+# Create variables with change score of affect (i.e., the level of affect on time point t minus the level of affect on t-1)
+MyData_filter$PosAffect_change <- MyData_filter$PosAffect - MyData_filter$PosAffect_1
+MyData_filter$NegAffect_change <- MyData_filter$NegAffect - MyData_filter$NegAffect_1
+
+
+### PREDICTORS
+# High score on mad_diary_25 now reflects poor coping abilities (high score = poor coping). We need to code it reversely, so that a higher score reflects better coping ability
+MyData_filter <- MyData_filter %>% mutate(mad_diary_25 = abs(as.numeric(unlist(MyData_filter$mad_diary_25)) - 100))
+var_lab(MyData_filter$mad_diary_25) = "Coping ability (recoded)"
+
+# Create mean-centered values of relevant variables for each subject 
+MyData_filter$sleep_c <- calc.mcent(mad_diary_3, patient_id, data=MyData_filter, na.rm=TRUE)
+MyData_filter$social_c <- calc.mcent(mad_diary_37, patient_id, data=MyData_filter, na.rm=TRUE)
+MyData_filter$coping_c <- calc.mcent(mad_diary_25, patient_id, data=MyData_filter, na.rm=TRUE)
+MyData_filter$physical_c <- calc.mcent(mad_diary_41, patient_id, data=MyData_filter, na.rm=TRUE)
+
+# Create lagged independent variables continuous risk/protective factors
+MyData_filter$sleep_1 <- lagvar(sleep_c, patient_id, obs=time, day=day, data=MyData_filter, lag=1)
+MyData_filter$social_1 <- lagvar(social_c, patient_id, obs=time, day=day, data=MyData_filter, lag=1)
+MyData_filter$coping_1 <- lagvar(coping_c, patient_id, obs=time, day=day, data=MyData_filter, lag=1)
+MyData_filter$physical_1 <- lagvar(physical_c, patient_id, obs=time, day=day, data=MyData_filter, lag=1)
+
+# create binary variable for positive events
+MyData_filter <- MyData_filter %>% mutate(PosEvent = case_when(
+                                                                mad_diary_32 == "1" ~ "0",
+                                                                mad_diary_32 == "2" ~ "1",
+                                                                mad_diary_32 == "3" ~ "0",
+                                                                mad_diary_32 == "4" ~ "0"
+                                                                ))
+
+MyData_filter$PosEvent <- as.numeric(MyData_filter$PosEvent) 
+
+# create binary variable for negative events
+MyData_filter <- MyData_filter %>% mutate(NegEvent = case_when(
+                                                                mad_diary_32 == "1" ~ "0",
+                                                                mad_diary_32 == "2" ~ "0",
+                                                                mad_diary_32 == "3" ~ "0",
+                                                                mad_diary_32 == "4" ~ "1"
+                                                              ))
+
+MyData_filter$NegEvent <- as.numeric(MyData_filter$NegEvent)
+
+# Create lagged independent variables continuous risk/protective factors
+MyData_filter$PosEvent_1 <- lagvar(PosEvent, patient_id, obs=time, day=day, data=MyData_filter, lag=1)
+MyData_filter$NegEvent_1 <- lagvar(NegEvent, patient_id, obs=time, day=day, data=MyData_filter, lag=1)
+
+# sort by patient_id, day number 1-30 and assessment nr 1-89 (time) (all ascending)
+MyData_filter <- MyData_filter[order(MyData_filter$patient_id, MyData_filter$day, MyData_filter$time),]
+
+```
+
+# Background
+Experiencing enough positive moods (e.g., feeling happy, cheerful, relaxed) and not too much negative moods (e.g., anger, sadness) is crucial to good mental health. Positive moods, for example, have the power to broaden one’s cognitive scope (Gable & Harmon-Jones, 2008; Harmon-Jones, Harmon-Jones, & Price, 2013), facilitates goal-directed action (Carver & Scheier, 1998; Frijda, 1988), and may buffer against future adversity (Fredrickson et al. 2000; but see: Cavanagh and Larkin 2018). Mood states are transient in nature, and vary as a function of internal and external daily life experiences (i.e., context).
+
+Context is of great importance for mental health. Whereas some contexts may have a protective effect on individuals’ affective states, others contribute to the development and maintenance of (affective) psychopathologies. Stress, for example, is a great risk factor for mental health as it typically has a negative influence on individuals’ affective states. To study risk and protective factors for mental health in daily life, diary studies offer a solution. In diary studies, internal and external experiences are sampled multiple times a day, for multiple consecutives days in the flow of daily life. This longitudinal approach enables ecologically valid insights into the extent to which mood changes and co-varies with internal and external factors over time.
+
+Many internal and external factors contribute to subsequent changes in mood. Recently, a systematic review of diary studies identified the following risk and protective factors for mental health in daily life: 1) physical activity; 2) sleep quality; 3) social interactions; 4) daily hassles, and 5) coping (Pemberton & Fuller Tyszkiewicz, 2016). Although these five factors occur in the same daily life context, the extent to which these factors contribute to or harm mental health are almost exclusively studied in isolation. One study has explored the combined and relative impact of the five risk and protective factors on negative mood. Collectively, the factors accounted for 13-39% of the changes in negative mood up to five hours later (Fuller-Tyszkiewicz et al., 2017). Compared to the other four factors, stress was relatively the strongest predictor of subsequent changes in negative mood, followed by poor coping.
+
+Compared to negative mood, very little is known about risk and protective factors for positive mood. Nevertheless, such knowledge is at least equally important for diagnosis, treatment, and recovery from depression. Depressed individuals have a large variety of symptoms (Fried), but all suffer from either too much negative mood (i.e., depressed mood), too little positive mood (i.e., anhedonia), or both. Given that positive and negative moods are considered independent dimensions (e.g., Kim and Hamann 2007; Gross and John 2003; Posner et al. 2005), and a reduction in negative mood will thus not necessarily lead to improvements in positive mood (Keyes, 2014; Watson et al., 1988), there is a gap in knowledge regarding the collective and relative impact of the five risk and protective factors on positive mood states in daily life.
+In the present study, we address this gap, and examine the combined and relative contributions of risk and protective factors to both positive mood and negative mood states in daily life. Below, we summarize the relevant findings per factor that were published after the latest systematic review. 
+
+## Sleep quality
+Poorer sleep quality is linked to lower PA (Lydon-Staley et al., 2017) and higher NA (O’Leary et al., 2017), and a duration of sleep shorter than 7-8 hours is linked to lower PA and higher NA the following day (Kaufmann et al., 2016). Interestingly, the effect of sleep seems to be in the eye of the beholder, as subjective sleep ratings (e.g., satisfaction or quality) are more predictive of mood than objective ratings (e.g., objectively measured hours of sleep Das‐Friebel et al., 2020; Scott et al., 2017). Moreover, subjective sleep variables (sleep quality, sleep duration and sleep latency) show a reciprocal relationship, as affective states were also related to subjective sleep measured on the next day (Konjarski et al., 2018; Könen et al., 2016; but see: Koch et al., 2020). 
+
+
+## Social company
+The presence of other and the appraisal of a social interaction is associated with increased PA and decreased NA (for a systematic review and meta-analysis, see: H. Liu et al., 2019; Rivera et al., 2020). The protective effects of social company also hold for digital encounters, albeit to a lesser extent compared to face-to-face encounters (Bayer et al., 2016; Kafetsios et al., 2017). Furthermore, perceived pleasantness of face-to-face social company has the power to attenuate the impact of prior stressful events on momentary NA (Sicorello et al., 2020). Importantly, there are indications that anhedonia, the loss of pleasure or positive mood, can be deterred by increasing the amount of social interaction (e.g., van Roekel et al., 2015). 
+
+## Negative events
+In everyday life, people experience positive and negative events. These are an inevitable part of life. On average, individuals experience around 20 inconvenient, unpleasant and/or stressful events per week (Kanner et al., 1981). Typically, after experiencing such event, the concurrent and subsequent level of NA increases and the level of NA decreases (e.g., Mey et al., 2020). Compared to non-depressed, depressed individuals demonstrate greater reactivity (i.e. greater increases in negative affect) to negative events (e.g., Sheets & Armey, 2020), and show a slower negative emotional recovery from negative events in daily life (Koval et al., 2015).
+
+## Stress reactivity and coping ability
+Coping is a complex and interactive process that aims to restore emotional balance. Coping ability refers to the ability to regulate negative emotions, that is, to “modify the frequency, intensity, and duration of [negative] emotional states” (Gross, 2014; Gross, 2015). Certain coping strategies promote better, or worse, emotional outcomes, depending on the class of strategies used: adaptive (e.g., reappraisal and self-distraction to downregulate negative moods) or maladaptive strategies (e.g., rumination, the repetitive thinking that prolongs negative mood). Whereas adaptive strategies upregulate positive mood and downregulate negative mood, maladaptive work vice versa (Colombo et al., 2020; Ma et al., 2020). Recent evidence suggests that the use of more adaptive strategies increase the chance of successful coping (Southward & Cheavens, 2020), as well as more flexibility in the adaptive strategies used (Blanke et al., 2020). Coping is also linked to depression, as an abundance of research shows that coping difficulties play a central role in sustained negative affect (Joormann & Stanton, 2016; D. Y. Liu & Thompson, 2017), and positive affect (Vanderlind et al., 2020).
+
+## Physical activity 
+In line with the latest systematic review (Pemberton & Fuller Tyszkiewicz, 2016), most studies report a link between physical activity and mood in daily life.  That is, more frequent and longer lasting physical activity are related to a higher levels of positive mood (Cushing et al., 2017; Schöndube et al., 2016; Wen et al., 2020), lower levels of negative mood (Aggio et al., 2017; Cushing et al., 2018; Kerrigan et al., 2020), or both (Schultchen et al., 2019; Smith et al., 2020). Conversely, sedentary behavior is linked to lower levels of positive mood and/or higher level of negative mood (Bejarano et al., 2019; Cushing et al., 2017; Elavsky et al., 2016; Smith et al., 2020). However, the effect sizes of the associations are typically small, and are more often found for positive mood than negative mood. For example, in a study with a fixed six hours interval between EMA assessments, there was association between physical activity and negative mood but one unit more than usual physical activity was associated with an increase in positive mood of 0.16 up to six hour later (Heininga et al., 2017).
+
+## Combined and relative effects on mood
+Building upon the above described risk and protective factors from daily life identified by Pemberton & Fuller-Tyszkiewicz (2016), Fuller-Tyszkiewicz and colleagues (2017) investigated the collective and relative contributions of these lifestyle factors to subsequent changes in NA (i.e., mean of feeling unhappy, sad, blue, hopeless, discouraged, miserable, helpless, and worthless). Collectively, the five risk and protective factors accounted for 39% of the variance in NA when they occurred less than two hours apart, 13% of the variance in NA two to five hours thereafter, and 7% of the variance in NA five to eight hours thereafter. Experiencing a stressful event was relatively the strongest predictor of subsequent changes in NA, followed by poor coping.
+With regards to positive mood, there has not yet been examination of the combined and relative effects on PA. However, unidirectional, changes in positive mood seem primarily been linked to social interaction and physical activity (for an overview up until 2015, see: Liao et al., 2015).
+
+## The present study
+Although sleep quality, appraisal of social company, negative event, coping ability, and physical activity occur in the same daily life context, the influence of these factors on mood are almost exclusively studied in isolation. In this study, we examine the combined and relative contributions of these risk and protective factors to both positive mood and negative mood states in daily life. Based on previous ESM research outlined above, we expect: 
+1.	Outcomes similar to those of Fuller-Tyszkiewicz and colleagues (2017) with regard to negative mood, namely a positive association between negative events experienced in the past six hours and subsequent changes in NA, and a negative association between coping ability in the past six hours and subsequent changes in NA.
+2.	A positive association between appraisal of social company in the past six hours and subsequent changes in PA, and a positive association between physical activity in the past six hours and subsequent changes in PA.
+
+In addition, the combined and relative effects on mood might be different in individuals with clinically relevant levels of depressive symptoms. Therefore, we compare the observed patterns to those observed in participants that meet the criteria for clinical depression.
+
+# Methods
+## Participants
+The sample used is a sub sample of the diary part of the HowNutsAreTheDutch (HND; in Dutch: HoeGekIsNL; van der Krieke et al., 2015; 2016). HND is a national crowdsourcing study designed to investigate multiple continuous mental health dimensions in a sample from the general population (n > 16.000). Participants can enroll themselves on an internet platform that allows participants to (a) compare themselves to other participants via cross-sectional questionnaires and (b) to monitor themselves three times a day for 30 days with an intensive longitudinal diary study via their smartphone.
+
+HND launched an open call to inhabitants of the Netherlands to join the research in December of 2013, and invited them to visit the Dutch website www.HoeGekIs.nl (also www.HowNutsAreTheDutch.com). The open call was announced on local and national radio broadcasts, television, during local podium discussions, in newspapers, and in magazines. The news about the HND research project was further disseminated via personal outlets of those interested (e.g., online blogs, twitter). To participate, people had to register, create, and confirm their account on www.HoeGekIs.nl. In a general start questionnaire, participants were asked to provide information such as gender, birth year, and country of residence (the Netherlands/Belgium/Other). Although HND was initially targeted on Dutch citizens located in The Netherlands, a question on country of residence was included after news about the study spread to Belgium and other Dutch speaking regions.
+
+## Procedure
+### Design of ESM-part of the study
+After enrollment, before the diary part started, participants had to complete a baseline assessment consisting of the items of the positive and negative affect schedule (PANAS; Peeters et al., 1996; Raes et al., 2009), the Quick Inventory of Depressive Symptoms (QIDS; Rush et al., 2003, 2006), and two extra items retrieved from the Inventory of Depressive Symptomatology (IDS; Rush et al., 1996) to assess anxiety/panic symptoms. 
+
+From the start of the diary study, for 30 days, participants filled out a short questionnaire of 43 diary questions on a variety of topics (e.g., subjective well-being, sleep, mood, mindfulness, and being outdoors) on their smartphone device three times a day with a fixed 6 hour interval Experience Sampling Method (ESM) design. To lower the burden of the diary study, the starting time of the assessment schedule was chosen in consultation with the participant. For example, people getting up at 8:00 could request their first diary at 8:30. The earliest possibility for the evening measurement was 18:00, and the latest possibility 6:00. Participants received a text message on their mobile phone with a link to a questionnaire, and were asked to fill out the questionnaire as soon as possible within one hour. After one hour, the questionnaire was no longer be accessible.
+
+### Participant Inclusion and Monitoring Protocol
+#### Inclusion criteria
+The study requirements for the larger HND study were age 18 or above; having a mobile phone with internet connection; not engaged in shift work; and not anticipating a major disruption of daily routines (e.g. a planned trip abroad, an anticipated surgical operation). In addition, participants were also asked to indicate whether they were aware that participation would be useless in case too many assessments would be missed, and whether they approved that their anonymised data would be used for scientific research. Participants had to check a box for each of these requirements before they could proceed. 
+
+#### Exclusion Criteria
+Although not described in the preregistrion, we excluded all ESM assessment made after the first 90 measurements. These first 90 measurements can consists of multiple periods, because participants were allowed to restart their diary study after some days, for example to change their sampling scheme or to change their personal item. They could only do so if they did not yet receive any feedback (<65% completed). If they did receive feedback, since 8 januari 2015, participants could start a new 90 measurement diary study. We decided to only use the first 90 measurements of the first study period.
+
+
+## Measures
+### Negative Affect (NA)
+The NA variable reflects the mean of feeling gloomy/ anxious/ nervous/ irritable/ dull/ tired per assessment on a slider scale ranging from "Not at all" (0) to "Very much" (100). The momentary item selection is based on the circumplex model of affect, which describes valence and activation dimensions of affect (Barrett and Russell, 1998; Yik et al., 1999).
+
+### Positive Affect (PA)
+In a similar vein, the PA variable reflect the mean of feeling relaxed/ energetic/ enthusiastic/ content/ calm/ cheerful per assessment on a slider scale ranging from "Not at all" (0) to "Very much" (100).
+
+### Sleep quality 
+Participants were asked "Did you sleep well?", with an answer-slider ranging from “Not at all” to “Very well” (0-100).
+
+### Negative event
+Participants were asked "Did something special happen since the last measurement?" with answer categories being (1) No, nothing; (2) Yes, something positive; (3) Yes, something neutral; (4) Yes, something negative. The ansers were recoded reflecting 0 when nothing special happened since the last measurement or something positive or something neutral (i.e., 0 = 1/2/3), and 1 when a negative event took place (i.e., 1 = 4).
+
+### Coping ability
+Coping is a complex and interactive process that aims to restore emotional balance. Instead of specific coping strategies, we operationalized poor coping ability as feeling upset/unbalanced. Participants were asked "I am unbalanced", with an answer-slider ranging from “Not at all” to “Very much” (0–100). Although unintentionally not mentioned in the preregistration, the item was recoded, so that higher scores reflected better coping ability.
+
+### Physical activity
+Since the last measurement I was physically active, answered on a slider ranging from “Not at all” to “Very much” (0–100)
+
+### Appraisal of social company
+Participants were asked "I found my company predominantly", with an answer-slider ranging from “Very unpleasant”, via “Neutral”, to “Very pleasant” (0-50-100).
+
+## Statistical procedures
+We use R `r getRversion()` [@R-base], Rmarkdown [@R-rmarkdown], and papaja [@R-papaja] to create a reproducible manuscript. The hypotheses and analyses were preregistered (see: https://osf.io/hk4pm/).  
+
+To test our hypotheses, We use random slopes Linear Mixed-Effects Model with assessments nested within subjects, with the change score of affect for that personas the dependent variable (i.e., the level of affect on time point t minus the level of affect on t-1), defined as:
+
+Level 1:
+$$Change \ in \ affect_{(i-(i-1))}=\beta_{0}+\beta_{1}(Sleep \ quality_{i})+\beta_{2}(Negative  \ event_{i}) 
++\beta_{3}(Coping \ ability_{i})+\beta_{4}(Physical \ activity_{i})+\beta_{5}(Appraisal \ of \ social \ company_{i})$$
+
+Level 2:
+$$
+\begin{aligned}
+  \beta_{0}&=\gamma_{00}+\gamma_{01}+u_{0}			\\
+  \beta_{3}&=\gamma_{30}+\gamma_{31}+u_{3}      
+\end{aligned}
+$$
+In this multilevel model, all predictors were person-mean centered except those of which the zero-point is already meaningful on its own and present in the data (i.e., negative events). It should be noted that, due to overfitting, we were unable to take into account all random slopes that were defined in the preregistration (see: https://osf.io/hk4pm/). Based on the REML criterion at convergence, we decided to stepwise include the random effects that improved model fit most: individuals' coping ability.
+
+As a robustness check, we repeated these analyses among the sub sample of people who completed > 70% of the ESM assessments. Results were similar. For the exact estimates, please see the supplementary materials.
+
+# Results
+## Descriptive statistics
+
+```{r prep, message=FALSE, warning=FALSE, include=FALSE}
+
+# normality checks
+histPA <- hist(MyData_filter$PosAffect)
+histNA <- hist(MyData_filter$NegAffect)
+
+# calculate descriptive statistics (mean/prop) per participant
+library(dplyr)
+descriptives <- MyData_filter %>%
+                        group_by(patient_id) %>%
+                        summarize(
+                          PosAffect = mean(PosAffect, na.rm = TRUE),
+                          NegAffect = mean(NegAffect, na.rm = TRUE),
+                          Sleep = mean(mad_diary_3, na.rm = TRUE),
+                          Coping = mean(mad_diary_25, na.rm = TRUE),
+                          PosEvent = prop(PosEvent),
+                          NegEvent = prop(NegEvent),
+                          Social = mean(mad_diary_37, na.rm = TRUE),
+                          Physical = mean(mad_diary_41, na.rm = TRUE)
+                        )
+library(apaTables)
+TableDescr <- apa.cor.table(descriptives, filename = NA, show.conf.interval = TRUE, landscape = TRUE)
+
+```
+
+```{r TableDescr}
+library(papaja)
+apa_table(TableDescr$table.body, caption = TableDescr$table.title, note = TableDescr$table.note,
+font_size = "scriptsize", row.names = FALSE,
+placement = "p", landscape = TRUE)
+
+```
+
+```{r in_text, message=FALSE, warning=FALSE}
+
+# to describe the nr of assessments
+Nr <- MyData_filter %>%
+                        group_by(patient_id) %>%
+                        summarize(
+                          Assessments = n(),
+                        )
+NrParticipants <- as.numeric(count(Nr))
+NrAssessments <- mean(Nr$Assessments)
+NrAssesssd <- sd(Nr$Assessments)
+NrAssessmin <- min(Nr$Assessments)
+NrAssessmax <- max(Nr$Assessments)
+
+# means and SDs of predictors
+meanPA <- mean(descriptives$PosAffect, na.rm=TRUE)
+sdPA <- sd(descriptives$PosAffect, na.rm=TRUE)
+  
+meanNA <- mean(descriptives$NegAffect, na.rm=TRUE)
+sdNA <- sd(descriptives$NegAffect, na.rm=TRUE)
+
+meanSleep <- mean(descriptives$Sleep, na.rm=TRUE)
+sdSleep <- sd(descriptives$Sleep, na.rm=TRUE)
+
+meanStress <- mean(descriptives$Stress, na.rm=TRUE)
+sdStress <- sd(descriptives$Stress, na.rm=TRUE)
+
+meanSleep <- mean(descriptives$Sleep, na.rm=TRUE)
+sdSleep <- sd(descriptives$Sleep, na.rm=TRUE)
+
+meanSocial <- mean(descriptives$Social, na.rm=TRUE)
+sdSocial <- sd(descriptives$Social, na.rm=TRUE)
+
+meanPhysical <- mean(descriptives$Physical, na.rm=TRUE)
+sdPhysical <- sd(descriptives$Physical, na.rm=TRUE)
+
+```
+
+### Sample description
+
+The sample consisted of`r NrParticipants` participants who filled out `r NrAssessments` (*SD*=`r NrAssesssd`) assessments on average, with a minimum of `r NrAssessmin` and maximum of `r NrAssessmax`. 
+
+### Distributions of main variables
+
+The average level of Negative Affect (NA) and Positive  Affect (PA) respectively was approximately `r meanNA` (*SD*=`r sdNA`), and `r meanPA` (*SD*=`r sdPA`) out of 100. With regard to the five risk and protective factors to mood and mood disorders, participants reported on average moderate sleep quality (*Mean* = `r meanSleep`; *SD*=`r sdSleep`); low stress levels (*Mean* = `r meanStress`; *SD*=`r sdStress`); found their company predominantly pleasant (*Mean* = `r meanSocial`; *SD*=`r sdSocial`), were only remotely physically active (*Mean* = `r meanPhysical`; *SD*=`r sdPhysical`), and experienced two positive events and two negative events during their study period. For a more detailed overview, and correlations between variables, please see Table \@ref(tab:TableDescr).
+
+### Intraclass Correlation Coefficient (ICC) of affect
+
+```{r descriptives_ICC, message=FALSE, warning=FALSE}
+# To describe how much variation in momentary mood states comes from differences between versus within individuals, we calculate the Intraclass correlation coefficient (ICC) by the following empty or null model:
+
+library(lme4)
+library(lmerTest)
+library(sjstats)
+
+# ICC for NA
+ICC_model_NA <- lmerTest::lmer(NegAffect_1 ~ 1 + 
+                (1 | patient_id), 
+        data =MyData_filter)
+
+ICC_NA <- performance::icc(ICC_model_NA)
+
+ICC_NA_prop <- round(ICC_NA$ICC_adjusted*100, digits=0) 
+
+ICC_NA_prop2 <- (100-ICC_NA_prop)
+
+# ICC for PA 
+ICC_model_PA <- lmerTest::lmer(PosAffect_1 ~ 1 + 
+                (1 | patient_id), 
+        data =MyData_filter)
+
+ICC_PA <- performance::icc(ICC_model_PA)
+
+ICC_PA_prop <- round(ICC_PA$ICC_adjusted*100, digits=0) 
+
+ICC_PA_prop2 <- (100-ICC_PA_prop)
+
+```
+
+Most of the variance in levels of affect comes from within-person difference, both NA (`r ICC_NA_prop2`%; ICC=`r round(ICC_NA$ICC_adjusted, digits=3)`) and PA (`r ICC_PA_prop2`%; ICC=`r round(ICC_PA$ICC_adjusted, digits=3)`).
+
+## Combined and relative contributions to Negative Affect (NA)
+
+```{r H1a_problem, eval=FALSE}
+
+# Strangely enough, lmer function cannot handle labels
+library("expss")
+MyData_filter$NegAffect_change <- drop_var_labs(MyData_filter$NegAffect_change)
+MyData_filter$NegAffect_1 <- drop_var_labs(MyData_filter$NegAffect_1)
+MyData_filter$sleep_c <- drop_var_labs(MyData_filter$sleep_c)
+MyData_filter$social_c <- drop_var_labs(MyData_filter$social_c)
+MyData_filter$coping_c <- drop_var_labs(MyData_filter$coping_c)
+MyData_filter$physical_c <- drop_var_labs(MyData_filter$physical_c)
+
+## Model as in preregistration
+H1a <- lmer(NegAffect_change ~ sleep_c + NegEvent + coping_c + physical_c + social_c +
+                (sleep_c + NegEvent + coping_c + physical_c + social_c  | patient_id),
+        data = MyData_filter)
+# GIVES ERROR!
+
+# Problem: we cannot follow Fuller-Tyszkiewicz and colleagues (2017) because a random slopes model with NA change score as DV and the risk/protective factors as IV is overfitted. The nr of random effects is too large to all take into account.
+
+# Solution: we look at how each of the predictors' random slopes effects influences the model fit looking at REML criterion at convergence. 
+
+## Starting with a baseline: a model with only fixed effects
+library("lme4")
+library("lmerTest")
+H1a <- lmer(NegAffect_change ~ sleep_c + NegEvent + coping_c + physical_c + social_c +
+                (1 | patient_id),
+        data = MyData_filter)
+H1a_sum <- summary(H1a)
+H1a_sum
+        # REML criterion at convergence: 10395.1 - BASELINE (only random intercept)
+
+## contribution of random slopes per predictor:
+H1a <- lmer(NegAffect_change ~ sleep_c + NegEvent + coping_c + physical_c + social_c +
+                (sleep_c | patient_id),
+        data = MyData_filter)
+H1a_sum <- summary(H1a)
+H1a_sum
+        # REML criterion at convergence: 10389.4 - sleep: improvement of 5.7
+
+H1a <- lmer(NegAffect_change ~ sleep_c + NegEvent + coping_c + physical_c + social_c +
+                (NegEvent | patient_id),
+        data = MyData_filter)
+H1a_sum <- summary(H1a)
+H1a_sum
+        # REML criterion at convergence: 10393.5 - stress: improvement of 1.6
+
+H1a <- lmer(NegAffect_change ~ sleep_c + NegEvent + coping_c + physical_c + social_c +
+                (coping_c | patient_id),
+        data = MyData_filter)
+H1a_sum <- summary(H1a)
+H1a_sum
+        # REML criterion at convergence: 10377.2 - coping: improvement of 17,9
+
+H1a <- lmer(NegAffect_change ~ sleep_c + NegEvent + coping_c + physical_c + social_c +
+                (physical_c | patient_id),
+        data = MyData_filter)
+H1a_sum <- summary(H1a)
+H1a_sum
+        # REML criterion at convergence: 10393.5 - physical activity: improvement of 1.6
+
+H1a <- lmer(NegAffect_change ~ sleep_c + NegEvent + coping_c + physical_c + social_c +
+                (social_c | patient_id),
+        data = MyData_filter)
+H1a_sum <- summary(H1a)
+H1a_sum
+        # REML criterion at convergence: 10394.6 - social: improvement of .5
+
+
+# Based on the above, we decided to (only) include the random effects of coping.
+
+```
+
+```{r H1a_asumptions, eval=FALSE}
+
+# Insert statistical assumptions here
+
+# check: relationship between NA and continuous predictor roughly linear?
+library("gridExtra")
+library(ggplot2) # enables the x axis adjustment (xlim)
+
+install.packages("see", dependencies = TRUE) # enables plotting multiple plots in one figure
+
+# Simple diagnostic-plots, where a linear model for each single predictor is plotted against the response variable, or the model’s residuals. Additionally, a loess-smoothed line is added to the plot. The main purpose of these plots is to check whether the relationship between outcome (or residuals) and a predictor is roughly linear or not. Since the plots are based on a simple linear regression with only one model predictor at the moment, the slopes (i.e. coefficients) may differ from the coefficients of the complete model.
+
+plot_model(H1a,  terms = c("sleep_c","social_c", "coping_c", "physical_c"), type ="slope", show.loess = F, show.data  = T, show.p = T) + xlim(-50, 50) 
+
+# Note: two warnings on failure to converge and large eigenvalues
+
+```
+
+```{r H1a, message=FALSE, warning=FALSE}
+
+# Strangely enough, lmer function cannot handle labels
+library("expss")
+MyData_filter$NegAffect_change <- drop_var_labs(MyData_filter$NegAffect_change)
+MyData_filter$PosAffect_change <- drop_var_labs(MyData_filter$PosAffect_change)
+MyData_filter$sleep_c <- drop_var_labs(MyData_filter$sleep_c)
+MyData_filter$social_c <- drop_var_labs(MyData_filter$social_c)
+MyData_filter$coping_c <- drop_var_labs(MyData_filter$coping_c)
+MyData_filter$physical_c <- drop_var_labs(MyData_filter$physical_c)
+
+
+# See also the problem description above: we cannot follow Fuller-Tyszkiewicz and colleagues (2017) because a random slopes model with NA change score as DV and the risk/protective factors as IV does not compute. The nr of random effects is too large. We decided to include coping as random effects.
+
+library("lme4")
+library("lmerTest")
+H1a <- lmer(NegAffect_change ~ sleep_c + NegEvent + coping_c + physical_c + social_c +
+                (coping_c | patient_id),
+        data = MyData_filter)
+
+H1a_sum <- summary(H1a)
+
+# please note: gives warning for almost overfitting
+# We obtain often a singular fit, suggesting that 
+# "the model is overfitted – that is, the random effects structure is too complex to be supported by the data, which naturally leads to the advice to 
+# remove the most complex part of the random effects structure (usually random slopes). The benefit of this approach is that it leads to a more 
+# parsimonious model that is not over-fitted." https://stats.stackexchange.com/questions/378939/dealing-with-singular-fit-in-mixed-models
+
+#  marginal (fixed effects) and conditional (fixed+random effects) R square. 
+H1a_R2 <- round(MuMIn::r.squaredGLMM(H1a)[1,2]*100,0)
+
+
+```
+
+```{r figH1a, fig.cap ="Association between risk/protective factors and changes in negative mood in daily life", message=FALSE, warning=FALSE}
+
+library("sjPlot")
+# plot NA by risk/protective factors
+plot_model(H1a,  type ="std2", dot.size = 3)
+
+```
+
+```{r TableH1a, results ="asis"}
+
+library(papaja)
+library(plyr)
+
+apa_table(coef(H1a_sum),          
+          caption ="Concurrent associations between risk/protective factors and Negative Affect",
+          note ="NegAffect on the Y-axis refers to momentary levels of Negative Affect (i.e., the mean on feeling gloomy/ anxious/ nervous/ irritable/ dull/ tired). Sleep_c = how well partipants slept (ranging from “Not at all” to “Very well”). NegEvent_c = experienced something negative (yes/no). Coping_c = the extent to which they were unbalanced (ranging from “Not at all” to “Very much”). Physical_c =  the extent to which participants were physically active. Because predictors are person-mean centered, their estimates reflect deviations from participants' own mean.",
+           small =TRUE)
+
+```
+
+Collectively, the five risk/protective factors account for approximately `r H1a_R2`% of the variations in participants' NA.
+
+Table \@ref(tab:TableH1a) and Figure \@ref(fig:figH1a) show that change in NA is associated to all five factors, except physical activity and negative events. Change in NA is most strongly associated with participants' coping ability, followed by sleep quality. That is, for each unit participants reported being more balanced (i.e., experiencing better coping ability) than normal (i.e., compared to their own mean), NA decreased with 0.24 units. For each unit participants reported better sleep quality than normal (i.e., compared to their own mean), NA decreased with 0.13 units.
+
+```{r H1a_exploratory, message=FALSE, warning=FALSE}
+
+library("lme4")
+library("lmerTest")
+
+# Strangely enough, lmer function cannot handle labels
+MyData_filter$NegAffect <- drop_var_labs(MyData_filter$NegAffect)
+
+# use PA as outcome, rather than the change in PA
+H1a2 <- lmer(NegAffect ~ sleep_c + NegEvent + coping_c + physical_c + social_c +
+                (coping_c | patient_id),
+        data = MyData_filter)
+
+#  marginal (fixed effects) and conditional (fixed+random effects) R square. 
+H1a_R22 <- round(MuMIn::r.squaredGLMM(H1a2)[1,2]*100,0)
+
+#plot_model(H2a2,  type ="std2", dot.size = 3)
+```
+
+To explore the combined and relative effects of the risk/protective factors on current affect, we reran the same model with the level of NA as outcome variable (instead of the *change* in NA in comparison to the level of NA at the previous time point). Approximately `r H1a_R22`% of the variance in concurrent NA levels is explained by the five risk/protective factors collectively. Results show a dramatic reduction in confidence interval and hence an association to all five predictors in approximately the same pattern (see tables and figures in supplementary materials).
+
+
+## Combined and relative contributions to Positive Affect (PA)
+
+```{r H2a, message=FALSE, warning=FALSE}
+
+# We expect that a single multilevel regression model on respectively NA and PA that includes sleep quality, appraisal of social company, negative event, coping ability, and physical activity as predictors, will show:
+# H2.  A positive association between appraisal of social company in the past six hours and subsequent changes in PA, and a positive association between physical activity in the past six hours and subsequent changes in PA.
+
+# Strangely enough, lmer function cannot handle labels
+MyData_filter$PosAffect_change <- drop_var_labs(MyData_filter$PosAffect_change)
+
+H2a <- lmer(PosAffect_change ~ sleep_c + NegEvent + coping_c + physical_c + social_c +
+                (coping_c | patient_id),
+        data = MyData_filter)
+
+#  marginal (fixed effects) and conditional (fixed+random effects) R square. 
+H2a_R2 <- round(MuMIn::r.squaredGLMM(H2a)[1,2]*100,0)
+
+# please note: does not converge and gives many warnings!
+```
+
+```{r figH2acheck, fig.cap ="check: relationship between PA and continuous predictor roughly linear?", eval=FALSE}
+
+# Simple diagnostic-plots, where a linear model for each single predictor is plotted against the response variable, or the model’s residuals. Additionally, a loess-smoothed line is added to the plot. The main purpose of these plots is to check whether the relationship between outcome (or residuals) and a predictor is roughly linear or not. Since the plots are based on a simple linear regression with only one model predictor at the moment, the slopes (i.e. coefficients) may differ from the coefficients of the complete model.
+
+plot_model(H2a,  terms = c("sleep_c","social_c", "coping_c", "physical_c"), type ="slope", show.loess = F, show.data  = T, show.p = T) + xlim(-50, 50) 
+# Note: two warnings on failure to converge and large eigenvalues
+
+library(effects)
+
+# to explore effects drawn from the H2a model
+plot_model(H2a, type = "eff", terms = "sleep_c", show.data  = T)
+plot_model(H2a, type = "eff", terms = "social_c", show.data  = T)
+plot_model(H2a, type = "eff", terms = "coping_c", show.data  = T)
+plot_model(H2a, type = "eff", terms = "physical_c", show.data  = T)
+plot_model(H2a, type = "eff", terms = "NegEvent", show.data  = T)
+```
+
+```{r figH2a, fig.cap ="Association between risk/protective factors and changes in positive mood in daily life", message=FALSE, warning=FALSE}
+
+
+plot_model(H2a,  type ="std2", dot.size = 3)
+```
+
+```{r TableH2a, results ="asis"}
+
+H2a_sum <- summary(H2a)
+
+apa_table(coef(H2a_sum),          
+          caption ="Concurrent association between the five major risk/protective factors and Positive Affect",
+          note ="PosAffect on the Y-axis refers to momentary levels of Positive Affect (i.e., the mean of feeling relaxed/ energetic/ enthusiastic/ content/ calm/ cheerful). Sleep_c = how well partipants slept (ranging from “Not at all” to “Very well”). NegEvent_c = experienced something negative (yes/no). Coping_c = the extent to which they were unbalanced (ranging from “Not at all” to “Very much”). Physical_c =  the extent to which participants were physically active. Because predictors are person-mean centered, their estimates reflect deviations from participants' own mean.",
+           small =TRUE)
+
+```
+
+Approximately `r H2a_R2`% of the change in PA is explained by the five risk/protective factors collectively. Table \@ref(tab:TableH2a) and Figure \@ref(fig:figH2a) show that change in PA is most strongly associated with individuals' coping abilities, followed by their quality of sleep and the experience of a negative event (compared a neutral or positive event).
+
+
+```{r H2a_exploratory, message=FALSE, warning=FALSE}
+
+library("lme4")
+library("lmerTest")
+
+# Strangely enough, lmer function cannot handle labels
+MyData_filter$PosAffect <- drop_var_labs(MyData_filter$PosAffect)
+
+# use PA as outcome, rather than the change in PA
+H2a2 <- lmer(PosAffect ~ sleep_c + NegEvent + coping_c + physical_c + social_c +
+                (coping_c | patient_id),
+        data = MyData_filter)
+
+#  marginal (fixed effects) and conditional (fixed+random effects) R square. 
+H2a_R22 <- round(MuMIn::r.squaredGLMM(H2a2)[1,2]*100,0)
+
+#plot_model(H2a2,  type ="std2", dot.size = 3)
+```
+
+To explore the combined and relative effects of the risk/protective factors on current affect, we reran the same model with the level of PA as outcome variable (instead of the *change* in PA in comparison to the level of PA at the previous time point; see tables and figures in supplementary materials). Results show a dramatic reduction in confidence interval and hence an association to all five predictors in approximately the same pattern. However, in this model, approximately `r H2a_R22`% of the variance in PA levels is explained by the five risk/protective factors collectively. Interestingly, compared to *change* in PA, concurrent PA levels are more strongly associated with pleasantness of social company.
+
+# Discussion
+Many internal and external factors contribute to subsequent changes in mood. Physical activity, sleep quality, social interactions, daily hassles, and coping were recently identified as the five major risk and protective factors for mental health in daily life (Pemberton & Fuller Tyszkiewicz, 2016). However, the influence of these factors on mood are almost exclusively studied in isolation. Fuller-Tyszkiewicz and colleagues (2017) were the first scholars who investigated the collective and relative contributions of these lifestyle factors to subsequent changes in NA (i.e., mean of feeling unhappy, sad, blue, hopeless, discouraged, miserable, helpless, and worthless). Collectively, the five risk and protective factors accounted for 39% of the variance in NA when they occurred less than two hours apart, 13% of the variance in NA two to five hours thereafter, and 7% of the variance in NA five to eight hours thereafter. Experiencing a negative event was relatively the strongest predictor of subsequent changes in NA, followed by poor coping.
+
+Following Fuller-Tyszkiewicz and colleagues (2017), this study examine the combined and relative contributions of these risk and protective factors to negative mood states in daily life. Collectively, the five risk/protective factors account for approximately 23% of the variations in participants’ NA, which is a little more than Fuller-Tyszkiewicz and colleagues (2017) reported with respect to the most comparable 2-5 hour interval. We expected a positive association between stressful events experienced in the past six hours and subsequent changes in NA, and a negative association between coping ability in the past six hours and subsequent changes in NA. Although our expectations were confirmed, the relative contributions differed from those reported by Fuller-Tyszkiewicz and colleagues (2017). That is, were Fuller-Tyszkiewicz and colleagues (2017) reported negative events and coping to relatively be the strongest risk/protective factors for negative mood states in daily life, we found that coping and sleep quality were relatively more strongly associated to changes in NA than negative events. In fact, negative events were not significantly associated to changes in NA. Although negative events were assessed in such a way that it had relatively lower power than the other risk/protective factors, given the sample size, the power still would have been sufficient to detect an effect if there was any. Rather, the absence of a significant association between negative events and NA suggests that among the five risk/protective factors accounted for negative events either have no unique predictive value in predicting NA, or the time lag of 0-6 hours was too large to capture the effects of negative events on NA. The first is most likely, as Johnson et al. (2008) showed that the effects of daily stressors on NA linger around 6–9 h after onset. Possibly, negative events often overlap with social events. For example, a social encounter that ended in a fight.
+
+With regard to coping, our results were similar to the results of Fuller-Tyszkiewicz and colleagues (2017) despite that we used a slightly different measure for coping. Whereas Fuller-Tyszkiewicz and colleagues (2017) asked participants rate their perceived ability to cope with a stressor from 0 (not at all) to 10 (completely), we used feeling upset/unbalanced as a proxy of coping. That we were still able to replicate the findings suggests that this  measure of coping, although less specific to context, might suffice.
+
+Compared to negative mood, little is known about risk and protective factors for positive mood. Nevertheless, depressed individuals suffer from either too much negative mood (i.e., depressed mood), too little positive mood (i.e., anhedonia), or both, and knowledge on the combined and collective contributions of the major risk/protective factors on *positive mood states* is at least equally important for diagnosis, treatment, and recovery from depression. To address this gap, this study also examined the combined and collective contributions of the five risk/protective factors for positive mood states in daily life. Based on previous ESM research, we expected a positive association between appraisal of social company in the past six hours and subsequent changes in PA, and a positive association between physical activity in the past six hours and subsequent changes in PA (for a review, see: Liao et al., 2015). Contrary to our expectations, however, our results showed that physical activity and social activity were not associated to subsequent change in PA. Instead, the pattern of estimates of risk/protective factors for PA (Figure 2) inversely mirrored the pattern for NA (Figure 1). These results suggest that physical and social activity have no unique predictive value for positive mood. However, another plausible explanation is that our time window of 0-6 hours may have been too large to observe an effect of physical activity on positive mood states. Support for this proposition comes from the study of Fuller-Tyszkiewicz and colleagues (2017) compared time lags, and found a small negative association between physical activity and negative mood, which disappeared when considering time points that were 2-5 hours apart. Phisical activity likely takes about 30 min to influence mood (Wen et al., 2018), and its mood-changing effects linger up to 180 minutes (Wichers et al., 2012). Possibly, the effects of physical activity on NA, and social and physical activity on PA, was thus already waned before we tried to assess it and the effects of physical activity on mood cannot be observed if one measures mood 0-6 hours later than the (retrospectively questioned) physical activity. Future diary studies might want to set seperate optimal time lags per time-dependence of risk/protective effects to capture its full effects on mood.
+
+## Strenghts and study limitations
+This study is a very large diary study 
+
+This study has several limitations. First, the risk/protective factors is a selection of factors that might be relevant for mood states. The selection was build on the systematic review of Pemberton & Fuller Tyszkiewicz and colleagues (2016), and the first explorations with regard to negative moods states by and Fuller-Tyszkiewicz and colleagues (2017), but there might be other risk/protective factors that are more relevant to mood states in daily life but have been less studied (yet). For example, in designing an experience sampling studie, researchers often choose factors that vary (enough) or are changeable (e.g. in intervention studies), leading to a biased selection of potential risk/protective factors. Moreover, our selection of factors is not exhaustive as PA/NA are also affected by things as: smoking, alcohol (Russell et al., 2020; Monk et al., 2020), drug-use (Martinez et al., 2005, 2007; Volkow et al., 2014; Liverant et al., 2014), and natural outdoor environments (Kondo et al., 2020). 
+
+Second, we examined the effects of the risk / protective factors on PA and NA separately, assuming that they are two independently functioning dimensions. However, we found inverse patterns of the risk-/protective factors for positive and negative mood. For both mood states, sleep and coping relatively provided the largest contribution to subsequent changes in PA, followed by negative events. Perhaps, both mood states are thus less independent that we assumed a priori. For example, recent research on depressive symptoms shows that PA and NA become more bipolar (opposites of the same continuum) in individuals with more depressive symptoms.
+
+Third, we studied unidirectional effects of the risk/protective factors on mood states in daily life, but there may actually be bi-directional effects present for some – or all – of the risk/protective effects. There may exists a reciprocal feedback loop between all (some of the?) risk/protective factors and affect, as the associations can be bi-directional and individuals learn about the reward and punishment value of each risk/protective factors by its co-occurrence with affect. These implicit associations between risk/protective factors and affect, in turn, increase the likelihood that individuals engage in similar contexts and activities in the future (Heininga et al., 2017; Wichers et al., 2015). Support for this notion also comes from studies into health-promoting behaviors (Maher et al., 2019; Nylocks et al., 2019).
+
+# Conclusions
+
+
+
+# Declarations
+
+## Author's contribution
+V.E.H. and N.J. developed the study concept. Data collection was performed by B.F.J and P.d.J., and V.E.H. performed the data analysis. V.E.H. drafted earlier versions of the manuscript, and N.J., B.F.J. and P.d.J. provided critical comments and suggestions for revisions. All authors approved the final version of the paper for submission.
+
+## Ethics approval and consent to participate
+
+
+## Funding
+
+
+
+\newpage
+
+# References
+
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
+
